@@ -1,0 +1,45 @@
+=== Reporte de Diagnostico del Sistema ===
+
+Fecha: Mon 31 Aug 19:26:43 CST 2026
+Hostname: lino
+
+--- Uptime ---
+ 19:26:43 up 15 min,  3 users,  load average: 0.08, 0.08, 0.09
+
+--- Uso de disco ---
+Filesystem      Size  Used Avail Use% Mounted on
+udev            3.6G     0  3.6G   0% /dev
+tmpfs           1.6G  9.1M  1.6G   1% /run
+/dev/mmcblk0p2   14G  6.8G  6.5G  51% /
+tmpfs           3.9G  224K  3.9G   1% /dev/shm
+tmpfs           5.0M   16K  5.0M   1% /run/lock
+tmpfs           1.0M     0  1.0M   0% /run/credentials/systemd-journald.service
+tmpfs           3.9G  4.0K  3.9G   1% /tmp
+/dev/mmcblk0p1  505M   87M  418M  18% /boot/firmware
+tmpfs           782M   64K  782M   1% /run/user/1000
+tmpfs           1.0M     0  1.0M   0% /run/credentials/getty@tty1.service
+
+--- Uso de memoria ---
+               total        used        free      shared  buff/cache   available
+Mem:           7.6Gi       377Mi       6.7Gi        30Mi       669Mi       7.3Gi
+Swap:          2.0Gi          0B       2.0Gi
+
+--- Temperatura de CPU ---
+temp=45.2'C
+
+--- Reporte compilado en C ---
+=== Reporte del Sistema ===
+Sistema operativo: Linux
+Nombre del host:   lino
+Version kernel:    6.18.34+rpt-rpi-v8
+Arquitectura:      aarch64
+
+=== CPU ===
+Model		: Raspberry Pi 4 Model B Rev 1.5
+
+=== Memoria ===
+MemTotal:        8007464 kB
+MemFree:         7049696 kB
+MemAvailable:    7620620 kB
+
+=== Fin del reporte ===
