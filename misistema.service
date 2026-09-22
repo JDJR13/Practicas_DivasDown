@@ -1,0 +1,11 @@
+[Unit]
+Description=Servicio de arranque de mi sensor combinado (I2C+SPI+GPIO)
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/home/papu/sensor_combinado
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
