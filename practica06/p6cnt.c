@@ -13,6 +13,9 @@ static DEFINE_MUTEX(candado);
 
 static int p6c_open(struct inode *inode, struct file *f)
 {
+    mutex_lock(&candado);
+    contador++;
+    mutex_unlock(&candado);
     pr_info("open (pid %d, proceso %s)\n", current->pid, current->comm);
     return 0;
 }
@@ -24,8 +27,6 @@ static ssize_t p6c_read(struct file *f, char __user *dst, size_t n, loff_t *pos)
     ssize_t r;
 
     mutex_lock(&candado);
-    if (*pos == 0)
-        contador++;
     len = snprintf(linea, sizeof(linea), "aperturas: %d\n", contador);
     mutex_unlock(&candado);
 
