@@ -1,0 +1,14 @@
+*.swp
+*.o
+*.ko
+*.mod
+*.mod.c
+*.cmd
+.*.cmd
+modules.order
+Module.symvers
+.tmp_versions/
+reporte_sistema
+practica06/cliente
+practica06/demo_ipc
+practica06/tiempo
