@@ -9,6 +9,6 @@ modules.order
 Module.symvers
 .tmp_versions/
 reporte_sistema
-practica06/cliente
-practica06/demo_ipc
-practica06/tiempo
+P6/cliente
+P6/demo_ipc
+P6/tiempo
