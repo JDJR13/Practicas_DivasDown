@@ -1,0 +1,11 @@
+tipos
+bits
+desborde
+desborde_ub
+regs_leer
+leds_regs
+sensores
+panel
+b_*
+*.s
+*.o
