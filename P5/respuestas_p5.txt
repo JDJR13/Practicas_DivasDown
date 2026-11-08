@@ -1,0 +1,96 @@
+Practica 5 - Procesos e hilos
+Respuestas
+
+=== Comprobacion previa ===
+systemctl status misistema.service -> inactive (dead)
+nproc -> 4 nucleos de procesamiento
+
+=== Parte A - Ver los procesos ===
+
+1. Proceso con PID 1:
+/sbin/init splash (estado Ss). Es el primer proceso que arranca el kernel
+y el ancestro de todos los demas procesos del sistema.
+
+2. Padre de la propia sesion de bash:
+La cadena es sshd(1098) -> sshd-session(1248) -> sshd-session(1257) -> bash(1258).
+El padre directo de bash (PID 1258) es sshd-session con PID 1257: cada
+conexion SSH crea una sesion que lanza el shell interactivo.
+
+3. Estado (STAT) mas comun y su significado:
+La mayoria de los procesos esta en estado S (sleeping/durmiendo): el
+proceso esta inactivo, esperando algun evento (senal, entrada de datos,
+temporizador) antes de volver a ejecutarse. Es normal porque casi ningun
+proceso usa el CPU de forma continua.
+
+=== Parte B - fork() y procesos zombie ===
+
+Letra en STAT observada: Z+ (Zombie / defunct).
+El proceso hijo ya termino su ejecucion, pero el sistema operativo lo
+mantiene en la tabla de procesos esperando a que el proceso padre lea su
+estado de salida mediante la llamada al sistema wait(). Una vez que el
+padre hace el wait(), el zombie es eliminado completamente (reaped).
+
+=== Parte C - Hilos y condicion de carrera ===
+
+Contador sin mutex (10 ejecuciones):
+En ninguna de las diez ejecuciones el resultado coincidio con el valor
+esperado de 2000000. Los valores erroneos obtenidos no se repitieron en
+ninguna ocasion (ej. 1003915, 1003495, 1014943, entre otros).
+
+Contador con mutex (10 ejecuciones):
+Las 10 ejecuciones dieron exactamente 2000000, el valor esperado.
+
+Comparacion de tiempos (cual tarda mas y por que):
+La version contador_mutex es mas lenta. Al proteger la seccion critica,
+el uso de candados (lock/unlock) introduce un costo adicional por el
+cambio de contexto y obliga a los hilos a ejecutarse de manera secuencial
+en esa seccion de codigo, perdiendo la ventaja del paralelismo en ese
+instante. La condicion de carrera en la version sin mutex ocurre porque
+ambos hilos leen y escriben la variable "contador" al mismo tiempo sin
+sincronizacion.
+
+=== Parte D - Costo: proceso vs. hilo ===
+
+Proporcion de tiempos:
+Crear 2000 procesos tomo en promedio ~0.545 s, mientras que crear 2000
+hilos tomo ~0.112 s. Crear procesos fue aproximadamente 4.8 veces mas
+lento que crear hilos.
+
+Explicacion (trabajo extra del kernel):
+Al crear un proceso con fork(), el kernel debe duplicar la tabla de
+paginas de memoria, los descriptores de archivos y el bloque de control
+del proceso. Al crear un hilo, el kernel solo asigna una nueva pila
+(stack) y registros, compartiendo el mismo espacio de memoria y recursos
+del proceso padre, lo que ahorra mucho trabajo.
+
+=== Parte E - Prioridades bajo el planificador ===
+
+Experimento 1 (nice 0 vs nice 19):
+La copia con prioridad normal (nice 0) acaparo el 98.3% del procesador,
+mientras que la copia con prioridad baja (nice 19) quedo restringida a
+un 1.3% de uso.
+
+Experimento 2 (ambas en nice 0):
+El CFS reparte el tiempo equitativamente, aproximadamente 49.8% para
+cada copia, porque ambas tienen el mismo "peso" de prioridad en el
+sistema.
+
+Comparacion y explicacion con CFS:
+Cuando compiten una copia con nice 0 y otra con nice 19, el planificador
+CFS (Completely Fair Scheduler) le otorga casi todo el tiempo de CPU a
+la de prioridad normal, dejando a la de prioridad baja casi sin recursos.
+Al ejecutar ambas con el mismo nice, el CFS reparte el tiempo de forma
+equitativa entre ambas.
+
+=== Parte F - Reto final: productor y consumidor ===
+
+Resultado: Total producidos: 100, Total consumidos: 100 (ningun numero
+se perdio ni se leyo dos veces).
+
+Parrafo (buffer de 8 posiciones con consumidor 10x mas lento):
+Si el consumidor fuera diez veces mas lento, el buffer de 8 posiciones
+se llenaria casi inmediatamente. El mecanismo que evita que los datos se
+sobrescriban o se pierdan es el semaforo espacios_libres, inicializado
+en 8. Cuando el buffer se llena, el semaforo llega a 0, lo que obliga al
+productor a suspenderse (bloquearse en sem_wait) y no consumir CPU hasta
+que el consumidor lea un dato y libere un espacio con sem_post.

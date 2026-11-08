@@ -1,0 +1,11 @@
+FSE 1858-6 · Practica 9 · Kit de depuracion
+
+estadistica.c     Parte B   resumen de lecturas, sin defectos
+f1_nulo.c         Parte D   programa con una falla
+f2_bucle.c        Parte D   programa con una falla (ejecutar con timeout 5)
+f3_corrupcion.c   Parte D   programa con una falla
+averiado.c        Parte G   reto del equipo (ejecutar con timeout 10)
+
+Uso:
+  make            compila todo con -g -O0
+  make clean      borra los ejecutables
