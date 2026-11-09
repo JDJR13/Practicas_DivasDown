@@ -44,10 +44,10 @@ COUNT_FROM = 3
 SHOTS = 3
 REVIEW_S = 1.7
 PROCESSING_MIN_S = 0.6                    # revelado minimo; revision (1.7 s) + revelado <= 2.5 s (requisito del Avance 1)
-NO_PRESENCE_S = 5                         # READY -> reposo (ATTRACT) tras 5 s sin que el HC-SR04 vea a nadie en 30-120 cm
-READY_TIMEOUT_S = 30                      # respaldo: se usa solo si el STM32 no manda tramas (sin sensor no se puede saber si hay gente)
+NO_PRESENCE_S = 5                         # reposo (SLEEP, pantalla atenuada) tras 5 s sin que el HC-SR04 vea a nadie en 30-120 cm
+READY_TIMEOUT_S = 30                      # respaldo si el STM32 no manda tramas (sin sensor no se sabe si hay gente): READY -> inicio
 RESULT_TIMEOUT_S = 45
-SLEEP_AFTER_S = 120
+SLEEP_AFTER_S = 120                       # respaldo sin sensor: inicio -> reposo
 
 # Filtros: el potenciometro (0-1023) selecciona uno. 'css' es la vista previa en vivo.
 FILTERS = [

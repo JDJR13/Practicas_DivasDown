@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw, ImageFont
 from . import config as C
 
 _FONTS = ["/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf"]
-_LABEL = {"ATTRACT": "REPOSO", "SLEEP": "DORMIDO", "READY": "LISTO", "COUNTDOWN": "FOTO", "CAPTURE": "FOTO",
+_LABEL = {"ATTRACT": "INICIO", "SLEEP": "REPOSO", "READY": "LISTO", "COUNTDOWN": "FOTO", "CAPTURE": "FOTO",
           "PROCESSING": "REVELANDO", "RESULT": "LISTA"}
 
 

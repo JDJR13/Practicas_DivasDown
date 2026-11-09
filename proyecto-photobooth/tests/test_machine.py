@@ -56,27 +56,31 @@ assert [s for s in seen if s[0] == "CAPTURE"] == [("CAPTURE", 1), ("CAPTURE", 2)
 assert (C.TMP_DIR / m.sid / "tira.jpg").exists() and (C.FINAL_DIR / f"{m.sid}.jpg").exists()
 print("beeps:", hal.beeps[-8:])
 # 6) timeouts
-run(C.RESULT_TIMEOUT_S + 1); assert m.state == "ATTRACT", m.state
-run(C.SLEEP_AFTER_S + 2); assert m.state == "SLEEP", m.state
+run(C.RESULT_TIMEOUT_S + 1); assert m.state == "SLEEP", m.state             # 45 s en resultado y ya no hay nadie: reposo
+hal.sim_set(reset=True); run(0.1); assert m.state == "ATTRACT", m.state     # el boton azul muestra el inicio...
+run(C.NO_PRESENCE_S - 2); assert m.state == "ATTRACT", m.state              # ...que aguanta 5 s sin nadie...
+run(3); assert m.state == "SLEEP", m.state                                  # ...y luego vuelve la pantalla de reposo
 hal.sim_set(button=True); run(0.2); assert m.state == "READY"
 print("log:", (C.FINAL_DIR / "sesiones.log").read_text().strip())
 
-# 7) reposo: READY vuelve a ATTRACT tras NO_PRESENCE_S (5 s) sin presencia; con alguien enfrente NO se va
+# 7) reposo: READY pasa a SLEEP (pantalla de reposo) tras NO_PRESENCE_S (5 s) sin presencia; con alguien enfrente NO se va
 assert C.NO_PRESENCE_S == 5
 hal.sim_set(distance=80); run(1.0); assert m.state == "READY"
 run(C.NO_PRESENCE_S + 3); assert m.state == "READY", "con presencia debe quedarse en READY"
 hal.sim_set(distance=None); run(C.NO_PRESENCE_S - 0.5); assert m.state == "READY", m.state
 assert m.snapshot()["timeout_s"] == C.NO_PRESENCE_S and m.snapshot()["idle_ms"] >= 4000
-run(1.0); assert m.state == "ATTRACT", m.state
+run(1.0); assert m.state == "SLEEP", m.state
+hal.sim_set(distance=80); run(0.7); assert m.state == "READY", "la presencia despierta el reposo"
+hal.sim_set(distance=None); run(C.NO_PRESENCE_S + 0.5); assert m.state == "SLEEP", m.state
 # la perilla NO cuenta como presencia: sin MCP3008 su lectura flota y la cabina nunca volveria al inicio
 hal.sim_set(button=True); run(0.2); assert m.state == "READY"
 for k in range(int((C.NO_PRESENCE_S + 0.5) / 0.05)):
     hal.sim_set(pot=(k * 97) % 1024); clk.t += 0.05; hal._last_sample = -1; m.step()
-assert m.state == "ATTRACT", ("perilla con ruido", m.state)
+assert m.state == "SLEEP", ("perilla con ruido", m.state)
 hal.sim_set(pot=450); run(0.6)
 # fuera del rango 30-120 cm no cuenta como presencia
 hal.sim_set(button=True); run(0.2); assert m.state == "READY"
-hal.sim_set(distance=200); run(C.NO_PRESENCE_S + 0.5); assert m.state == "ATTRACT", m.state
+hal.sim_set(distance=200); run(C.NO_PRESENCE_S + 0.5); assert m.state == "SLEEP", m.state
 hal.sim_set(distance=None)
 # sin tramas del STM32 (sensor desconectado) se usa el respaldo de 30 s, no los 5 s
 class NoUart(SimHAL):
@@ -88,6 +92,8 @@ def run2(sec, dt=0.05):
 h2.sim_set(button=True); run2(0.2); assert m2.state == "READY"
 run2(C.NO_PRESENCE_S + 5); assert m2.state == "READY", "sin sensor no debe aplicar el limite de 5 s"
 run2(C.READY_TIMEOUT_S); assert m2.state == "ATTRACT", m2.state
+run2(C.NO_PRESENCE_S + 5); assert m2.state == "ATTRACT", "sin sensor el inicio no se duerme a los 5 s"
+run2(C.SLEEP_AFTER_S); assert m2.state == "SLEEP", m2.state
 
 # 8) boton azul (reset): cancela desde cualquier estado y la siguiente sesion sale limpia
 def free_blocks(): return m.pool.sem_libres._value
@@ -106,7 +112,8 @@ def reset_and_check(desc):
     assert (hal.beeps[-1][0], hal.beeps[-1][1]) == (C.RESET_HZ, C.RESET_MS), desc
     print("reset OK:", desc)
 
-assert m.state == "ATTRACT"; hal.sim_set(reset=True); run(0.1); assert m.state == "ATTRACT"          # en reposo: no rompe nada
+assert m.state == "SLEEP"; hal.sim_set(reset=True); run(0.1); assert m.state == "ATTRACT"            # en reposo: muestra el inicio
+run(C.NO_PRESENCE_S + 0.5); assert m.state == "SLEEP"                                                # y sin nadie vuelve a reposo
 hal.sim_set(button=True); run(0.2); assert m.state == "READY"; reset_and_check("READY")
 hal.sim_set(button=True); run(0.2); hal.sim_set(button=True); run(0.1); assert m.state == "COUNTDOWN"
 run(1.0); reset_and_check("COUNTDOWN de la foto 1 (0 fotos en el pool)")

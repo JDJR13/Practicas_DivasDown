@@ -91,10 +91,11 @@ El STM32 mide con TIM2 CH2 (captura de entrada en PA1, 1 µs) el eco del HC-SR04
 ## 6. Reglas de la cabina
 - Presencia: 5 lecturas seguidas (500 ms a 10 Hz) entre 30 y 120 cm despiertan la cabina; una lectura fuera de rango reinicia la cuenta
   (`PRESENCE_MIN_CM`, `PRESENCE_MAX_CM` en `config.py`).
-- Reposo: en la pantalla de filtros, **5 s sin nadie en ese rango** (`NO_PRESENCE_S`) regresan al inicio. Si el STM32 no manda tramas se usa
-  el respaldo de 30 s (`READY_TIMEOUT_S`), porque sin sensor no se puede saber si hay alguien. Durante las fotos y el resultado no aplica.
+- Reposo: **5 s sin nadie en ese rango** (`NO_PRESENCE_S`), en la pantalla de filtros o en la de inicio, llevan a la pantalla de reposo
+  (atenuada, "Acércate para despertar"); la presencia o el botón rojo la despiertan. Si el STM32 no manda tramas se usan los respaldos
+  (30 s filtros → inicio, 120 s inicio → reposo), porque sin sensor no se puede saber si hay alguien. Durante las fotos y el resultado no aplica.
 - Botón rojo (GPIO17, pin 11): empezar / otra sesión. **Botón azul (GPIO27, pin 13): reset** — cancela lo que haya (cuenta regresiva, fotos,
   revelado o resultado) y vuelve al inicio; las fotos de la sesión cancelada se descartan. Ambos van del pin a GND (pull-up interna).
 - Potenciómetro (0-1023) → 5 filtros con histéresis. Cuenta regresiva 3-2-1 con tono; 3 fotos; tira lista en ≤ 2.5 s tras la 3ª foto.
-- Fotos intermedias en /tmp (RAM); la tira final a la microSD con `fsync` (clase 15). 45 s en resultado → inicio; 120 s en el inicio sin nadie → pantalla atenuada (`SLEEP_AFTER_S`).
+- Fotos intermedias en /tmp (RAM); la tira final a la microSD con `fsync` (clase 15). 45 s en resultado → inicio.
 - Buzzer: `python3 tools/buzzer_sweep.py` encuentra la frecuencia que suena más fuerte (`TICK_HZ`, `SHUTTER_HZ` en `config.py`).

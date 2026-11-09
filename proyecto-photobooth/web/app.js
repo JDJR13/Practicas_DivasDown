@@ -130,7 +130,8 @@
       // READY se acaba por inactividad (nadie frente al sensor), no por tiempo en pantalla: se cuenta desde la ultima actividad
       const idle = Math.max(0, snap.timeout_s - ((snap.idle_ms || 0) + dt) / 1000);
       const show = !snap.present && idle < Math.min(12, snap.timeout_s - 1);
-      $("#idle-note").textContent = show ? `¿Sigues ahí? Volviendo al inicio en ${Math.ceil(idle)} s…` : "";
+      const dest = snap.uart_ok ? "Entrando en reposo" : "Volviendo al inicio";
+      $("#idle-note").textContent = show ? `¿Sigues ahí? ${dest} en ${Math.ceil(idle)} s…` : "";
     }
     if (snap.state === "RESULT") {
       $("#res-left").textContent = `o en ${Math.ceil(left)} s volvemos al inicio`;

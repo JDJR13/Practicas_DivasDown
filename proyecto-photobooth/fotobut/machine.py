@@ -1,8 +1,8 @@
 """Maquina de estados de El Fotobut (logica pura, sin GUI).
 
 ATTRACT -> READY -> COUNTDOWN -> CAPTURE -> (COUNTDOWN x3) -> PROCESSING -> RESULT -> READY/ATTRACT
-READY vuelve a ATTRACT (reposo) tras NO_PRESENCE_S sin presencia; SLEEP tras SLEEP_AFTER_S. El boton azul (reset) cancela
-lo que haya y vuelve al inicio desde cualquier estado.
+Reposo (SLEEP, pantalla atenuada "Acercate para despertar"): tras NO_PRESENCE_S sin presencia, desde READY o desde el inicio
+(ATTRACT). La presencia o el boton rojo la despiertan. El boton azul (reset) cancela lo que haya y vuelve al inicio.
 Entradas: boton rojo (GPIO17), boton azul (GPIO27), potenciometro (filtro), distancia (STM32).
 """
 from __future__ import annotations
@@ -119,6 +119,10 @@ class Machine:
         """Segundos sin actividad para dejar READY. Con el sensor vivo manda la presencia (5 s); sin sensor, el respaldo (30 s)."""
         return C.NO_PRESENCE_S if self.uart_ok else C.READY_TIMEOUT_S
 
+    def _sleep_limit(self) -> float:
+        """Segundos sin nadie para pasar del inicio a la pantalla de reposo: 5 s con el sensor vivo; sin sensor, 120 s."""
+        return C.NO_PRESENCE_S if self.uart_ok else C.SLEEP_AFTER_S
+
     def timeout_s(self) -> float | None:
         return {"READY": self._ready_limit(), "RESULT": C.RESULT_TIMEOUT_S}.get(self.state)
 
@@ -169,13 +173,13 @@ class Machine:
         elif s == "ATTRACT":
             if wake or press:
                 self._go("READY")
-            elif self._idle(now) > C.SLEEP_AFTER_S:
+            elif self._idle(now) > self._sleep_limit():      # 5 s sin nadie: pantalla de reposo
                 self._go("SLEEP")
         elif s == "READY":
             if press:
                 self._start_session()
-            elif self._idle(now) > self._ready_limit():      # 5 s sin nadie frente al sensor: a reposo
-                self._go("ATTRACT")
+            elif self._idle(now) > self._ready_limit():      # 5 s sin nadie frente al sensor: pantalla de reposo
+                self._go("SLEEP" if self.uart_ok else "ATTRACT")   # (sin sensor, el respaldo vuelve al inicio como antes)
         elif s == "COUNTDOWN":
             c = C.COUNT_FROM - int(self._age())
             if c != self.count and c >= 1:
@@ -201,8 +205,8 @@ class Machine:
         elif s == "RESULT":
             if press:
                 self._go("READY")
-            elif self._age() > C.RESULT_TIMEOUT_S:
-                self._go("ATTRACT")
+            elif self._age() > C.RESULT_TIMEOUT_S:           # si ya no hay nadie, directo a reposo (sin parpadear el inicio)
+                self._go("SLEEP" if self.uart_ok and self._idle(now) > self._sleep_limit() else "ATTRACT")
 
         self._publish()
         return None
