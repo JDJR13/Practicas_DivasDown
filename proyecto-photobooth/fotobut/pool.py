@@ -38,6 +38,17 @@ class FramePool:
         self.sem_llenos.release()
         return i
 
+    def put_marker(self, timeout: float = 1.0) -> bool:
+        """Marca de "sesion cancelada" (boton de reset): ocupa un bloque sin copiar imagen (meta = None) para despertar al
+        consumidor, que al verla libera las fotos que ya tenia. Sigue el mismo protocolo de semaforos que put()."""
+        if not self.sem_libres.acquire(timeout=timeout):
+            return False
+        with self.mutex_pool:
+            i, self._head = self._head, (self._head + 1) % self.n
+        self.meta[i] = None
+        self.sem_llenos.release()
+        return True
+
     def get(self):
         """Consumidor. Duerme hasta que haya una foto completa: jamas lee un bloque a medio escribir."""
         self.sem_llenos.acquire()

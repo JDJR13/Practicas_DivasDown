@@ -6,7 +6,7 @@ Funciona **sin internet**: fuentes, QR y todo lo demás van incluidos.
 
 ```
  ┌────────── control_daemon ──────────┐   socket AF_UNIX SEQPACKET (eventos/órdenes, 64 B)   ┌──────────── vision_gui ────────────┐
- │ H_boton (FIFO 80)  GPIO17          │ ───────────────────────────────────────────────────▶ │ H_maquina  máquina de estados      │
+ │ H_boton (FIFO 80)  GPIO17 y GPIO27 │ ───────────────────────────────────────────────────▶ │ H_maquina  máquina de estados      │
  │ H_sensores (nice -5) SPI MCP3008 ──┼──── /dev/shm/pb_status + semáforo POSIX (pot, ldr,  ─▶│ H_compositor (nice 0) tira + fsync │
  │   UART ← STM32 (HC-SR04)           │      distancia, temperatura; 128 B)                  │ cámara IMX708 · pool de 3 fotos    │
  │ H_oled (nice +10) I2C BMP280+OLED  │ ◀──────────────────────── órdenes: beep, estado ──── │ servidor de la pantalla 127.0.0.1:8000
@@ -37,14 +37,21 @@ sudo ./scripts/instalar_servicios.sh        # crea y habilita fotobut-control / 
 ./scripts/instalar_autoarranque.sh          # Chromium a pantalla completa al iniciar la sesión gráfica
 sudo reboot                                  # el sistema debe quedar funcionando solo
 ```
-Red Wi-Fi propia para la descarga (opcional, una sola vez): `sudo ./scripts/setup_ap.sh` y luego `./scripts/ap_on.sh`
-(usa wlan0: si entras por SSH por Wi-Fi se corta; usa cable o `--force`). SSID `Fotobut`, clave `fotobut2026`, IP `192.168.4.1`.
+**Red Wi-Fi propia para la descarga** (SSID `Fotobut`, clave `fotobut2026`, cabina en `192.168.4.1`):
+```bash
+sudo ./scripts/setup_ap.sh            # una sola vez, con la Pi todavía en internet (crea el perfil; instala dnsmasq-base si falta)
+./scripts/ap_on.sh --arranque         # enciende la red ahora y en cada arranque (sin --arranque: solo hasta reiniciar)
+./scripts/ap_off.sh                   # la apaga y la Pi vuelve a su Wi-Fi normal
+```
+Usa wlan0: si entras por SSH a través de Wi-Fi la sesión se corta (agrega `--force`, únete a `Fotobut` y entra con `ssh usuario@192.168.4.1`).
+Con la red encendida la pantalla de resultado muestra **dos QR**: 1) unirse al Wi-Fi, 2) descargar la tira (`http://192.168.4.1:8080/s/<sesión>`).
+Con la red apagada solo sale el QR de descarga con la IP actual de la Pi (sirve si el celular está en esa misma red).
 
 ## 2. Probar sin hardware (simulador, en cualquier PC con Python 3.10+, Pillow y numpy)
 ```bash
 python3 run.py --sim                 # lanza los 3 procesos y los vigila; abre http://127.0.0.1:8000
 ```
-Teclas: Espacio = botón · ←/→ o 1-5 = potenciómetro (filtro) · P = persona frente al sensor · D = depuración. `?debug` muestra el estado del hardware.
+Teclas: Espacio = botón rojo · R = botón azul (reset) · ←/→ o 1-5 = potenciómetro (filtro) · P = persona frente al sensor · D = depuración. `?debug` muestra el estado del hardware.
 
 ## 3. Pruebas y mediciones (ver `tools/`)
 | Qué | Comando |
@@ -56,6 +63,8 @@ Teclas: Espacio = botón · ←/→ o 1-5 = potenciómetro (filtro) · P = perso
 | RAM y CPU por proceso | `./tools/monitor_recursos.sh 10` |
 | Fallas inducidas y recuperación | `./tools/inducir_falla.sh control` · `vision` · `qr` |
 | Precision del HC-SR04 + STM32 (con `fotobut-control` detenido) | `python3 tools/medir_distancia.py 10 30 60 100` |
+| Pulsar un botón sin tenerlo cableado (pone el pin a 0 V 150 ms) | `./tools/pulsar.sh rojo` · `./tools/pulsar.sh azul` |
+| Ver en vivo estado, distancia y presencia (para acomodar el sensor) | `./tools/ver_estado.sh` |
 | Latencia y traza del socket (IPC) | `curl -s http://127.0.0.1:8000/api/ipc` · `./tools/trazar_ipc.sh` |
 | Clases 20 y 21 (tipos, volatile, drivers) | `./tools/evidencia_clase20_21.sh 2>&1 \| tee /tmp/ev.txt` · `./tools/contar_syscalls.sh` |
 | Dónde está cada decisión de la bitácora (archivo:línea) | `python3 tools/mapa_bitacora.py` |
@@ -80,7 +89,12 @@ El STM32 mide con TIM2 CH2 (captura de entrada en PA1, 1 µs) el eco del HC-SR04
 - `systemd/` unidades · `scripts/` instalación y red Wi-Fi · `web/` interfaz (HTML/CSS/JS) · `tools/` medición y evidencia · `tests/`
 
 ## 6. Reglas de la cabina
-- Presencia: 5 lecturas seguidas (500 ms a 10 Hz) entre 30 y 120 cm despiertan la cabina; una lectura fuera de rango reinicia la cuenta.
+- Presencia: 5 lecturas seguidas (500 ms a 10 Hz) entre 30 y 120 cm despiertan la cabina; una lectura fuera de rango reinicia la cuenta
+  (`PRESENCE_MIN_CM`, `PRESENCE_MAX_CM` en `config.py`).
+- Reposo: en la pantalla de filtros, **5 s sin nadie en ese rango** (`NO_PRESENCE_S`) regresan al inicio. Si el STM32 no manda tramas se usa
+  el respaldo de 30 s (`READY_TIMEOUT_S`), porque sin sensor no se puede saber si hay alguien. Durante las fotos y el resultado no aplica.
+- Botón rojo (GPIO17, pin 11): empezar / otra sesión. **Botón azul (GPIO27, pin 13): reset** — cancela lo que haya (cuenta regresiva, fotos,
+  revelado o resultado) y vuelve al inicio; las fotos de la sesión cancelada se descartan. Ambos van del pin a GND (pull-up interna).
 - Potenciómetro (0-1023) → 5 filtros con histéresis. Cuenta regresiva 3-2-1 con tono; 3 fotos; tira lista en ≤ 2.5 s tras la 3ª foto.
-- Fotos intermedias en /tmp (RAM); la tira final a la microSD con `fsync` (clase 15). 45 s en resultado → inicio; 120 s sin nadie → reposo.
+- Fotos intermedias en /tmp (RAM); la tira final a la microSD con `fsync` (clase 15). 45 s en resultado → inicio; 120 s en el inicio sin nadie → pantalla atenuada (`SLEEP_AFTER_S`).
 - Buzzer: `python3 tools/buzzer_sweep.py` encuentra la frecuencia que suena más fuerte (`TICK_HZ`, `SHUTTER_HZ` en `config.py`).

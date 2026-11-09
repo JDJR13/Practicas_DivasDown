@@ -15,7 +15,7 @@ class RemoteHAL:
     def __init__(self, sim: bool = False):
         self.is_sim = sim
         self._lock = threading.Lock()                    # [C9-mutex_estado] protege presses/ultimo boton entre H_ipc_rx y la maquina
-        self._presses = 0
+        self._presses = self._resets = 0
         self.last_edge = (0, 0)                          # (ref_ns, ms de antirrebote) de la ultima pulsacion
         self.on_button = None                            # callback: despierta la maquina de estados al instante
         self.link = False
@@ -33,6 +33,11 @@ class RemoteHAL:
             with self._lock:
                 self._presses += 1
                 self.last_edge = (m["ref_ns"], m["a"])
+            if self.on_button:
+                self.on_button()
+        elif t == ipc.EV_RESET:                          # boton azul: la maquina cancela la sesion y vuelve al inicio
+            with self._lock:
+                self._resets += 1
             if self.on_button:
                 self.on_button()
         elif t == ipc.EV_HELLO:
@@ -67,14 +72,15 @@ class RemoteHAL:
         s = self._snap()
         with self._lock:
             p, self._presses = self._presses, 0
+            r, self._resets = self._resets, 0
         fresh = bool(s) and self.link and (ipc.now_ms() - s["t_ms"]) < 1000     # datos viejos = control_daemon colgado
         if not fresh:
             self._tel = {}
-            return Inputs(p, 512, 512, None, 0, False)
+            return Inputs(p, 512, 512, None, 0, False, r)
         fl = s["flags"]
         self._tel = {"temp_c": s["temp_c"], "cpu_c": s["cpu_c"], "ram_used": s["ram_used"], "ram_total": s["ram_total"], "ip": s["ip"],
                      "alert": bool(fl & ipc.FL_ALERT), "bmp_ok": bool(fl & ipc.FL_BMP), "oled_ok": bool(fl & ipc.FL_OLED)}
-        return Inputs(p, s["pot"], s["ldr"], s["dist"], s["dist_seq"], bool(fl & ipc.FL_UART_ALIVE))
+        return Inputs(p, s["pot"], s["ldr"], s["dist"], s["dist_seq"], bool(fl & ipc.FL_UART_ALIVE), r)
 
     def telemetry(self) -> dict:
         return self._tel
@@ -88,8 +94,8 @@ class RemoteHAL:
     def ping(self) -> None:
         self.client.send(ipc.pack(ipc.CMD_PING, ref_ns=time.monotonic_ns()))
 
-    def sim_set(self, button: bool = False, pot: Optional[int] = None, distance="keep") -> None:
-        fl = (ipc.F_SIM_BUTTON if button else 0) | (ipc.F_SIM_POT if pot is not None else 0)
+    def sim_set(self, button: bool = False, pot: Optional[int] = None, distance="keep", reset: bool = False) -> None:
+        fl = (ipc.F_SIM_BUTTON if button else 0) | (ipc.F_SIM_POT if pot is not None else 0) | (ipc.F_SIM_RESET if reset else 0)
         b = 0
         if distance != "keep":
             if distance is None: fl |= ipc.F_SIM_NODIST

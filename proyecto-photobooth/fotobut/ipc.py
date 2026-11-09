@@ -21,9 +21,9 @@ MSG_FMT = "<BBHHHq48s"                                    # [C20-tipos] u8,u8,u1
 MSG_SIZE = struct.calcsize(MSG_FMT)                      # 64
 assert MSG_SIZE == 64
 
-EV_HELLO, EV_BUTTON, EV_PONG = 1, 2, 3                   # control_daemon -> vision_gui
+EV_HELLO, EV_BUTTON, EV_PONG, EV_RESET = 1, 2, 3, 4      # control_daemon -> vision_gui (EV_RESET = boton azul)
 CMD_BEEP, CMD_SIM, CMD_STATE, CMD_PING = 10, 11, 12, 13  # vision_gui -> control_daemon
-F_SIM_BUTTON, F_SIM_POT, F_SIM_DIST, F_SIM_NODIST = 1, 2, 4, 8
+F_SIM_BUTTON, F_SIM_POT, F_SIM_DIST, F_SIM_NODIST, F_SIM_RESET = 1, 2, 4, 8, 16
 _seq = 0
 _seq_lock = threading.Lock()
 

@@ -24,10 +24,12 @@ MAX_TMP_SESSIONS = 20                     # sesiones que se conservan en RAM (/t
 # Busca la mejor con:  python3 tools/buzzer_sweep.py
 TICK_HZ, TICK_MS = 2700, 160              # tono de la cuenta regresiva
 SHUTTER_HZ, SHUTTER_MS = 3400, 220        # obturador
+RESET_HZ, RESET_MS = 1800, 120            # confirmacion del boton azul (reset)
 
 # Hardware (pines segun el diagrama de bloques)
-GPIO_BUTTON = 17
-BUTTON_ACTIVE_LOW = True       # pull-up interna: presionado = 0 V (si tu boton va a 3.3V, pon False)
+GPIO_BUTTON = 17               # boton rojo (pin fisico 11): empezar / siguiente sesion
+GPIO_RESET = 27                # boton azul (pin fisico 13): cancelar y volver al inicio
+BUTTON_ACTIVE_LOW = True       # pull-up interna: presionado = 0 V (si tu boton va a 3.3V, pon False). Aplica a los dos botones
 GPIO_BUZZER = 18
 I2C_BUS, OLED_ADDR, BMP_ADDR = 1, 0x3C, 0x77
 SPI_BUS, SPI_DEV = 0, 0
@@ -42,7 +44,8 @@ COUNT_FROM = 3
 SHOTS = 3
 REVIEW_S = 1.7
 PROCESSING_MIN_S = 0.6                    # revelado minimo; revision (1.7 s) + revelado <= 2.5 s (requisito del Avance 1)
-READY_TIMEOUT_S = 30
+NO_PRESENCE_S = 5                         # READY -> reposo (ATTRACT) tras 5 s sin que el HC-SR04 vea a nadie en 30-120 cm
+READY_TIMEOUT_S = 30                      # respaldo: se usa solo si el STM32 no manda tramas (sin sensor no se puede saber si hay gente)
 RESULT_TIMEOUT_S = 45
 SLEEP_AFTER_S = 120
 

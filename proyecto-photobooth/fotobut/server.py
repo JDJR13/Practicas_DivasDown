@@ -75,7 +75,7 @@ def make_handler(machine, hal, camera):
                 try:
                     d = json.loads(self.rfile.read(n) or b"{}")
                     hal.sim_set(button=bool(d.get("button")), pot=d.get("pot"),
-                                distance=d["distance"] if "distance" in d else "keep")
+                                distance=d["distance"] if "distance" in d else "keep", reset=bool(d.get("reset")))
                     return self._send(200, b"{}", "application/json")
                 except Exception as e:                       # noqa: BLE001
                     return self._send(400, str(e).encode(), "text/plain")

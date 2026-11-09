@@ -100,8 +100,9 @@
       $("#strip").src = s.strip_url + "?" + Date.now();
       const ap = !!s.ap_active && !!s.qr_wifi;
       $("#card-wifi").hidden = !ap;
+      $("#res-hint").hidden = !ap;
       $("#step-url").textContent = ap ? "2" : "1";
-      $("#res-sub").textContent = ap ? "Llévatela en tu celular en dos pasos" : "Llévatela en tu celular: conéctate a la red de la cabina y escanea";
+      $("#res-sub").textContent = ap ? "Llévatela en tu celular en dos pasos" : "Llévatela en tu celular: con tu celular en la misma red que la cabina, escanea";
       if (ap) $("#qr-wifi").innerHTML = qrSvg(s.qr_wifi);
       if (s.qr_url) $("#qr-url").innerHTML = qrSvg(s.qr_url);
       $("#url-txt").textContent = (s.share_url || "").replace("http://", "").replace(/\/s\/.*/, "");
@@ -123,8 +124,14 @@
   // ---------- temporizadores locales (aviso de inactividad / anillo de resultado) ----------
   setInterval(() => {
     if (!snap || !snap.timeout_s) { $("#idle-note").textContent = ""; return; }
-    const left = Math.max(0, snap.timeout_s - (snap.age_ms + performance.now() - snapAt) / 1000);
-    if (snap.state === "READY") $("#idle-note").textContent = left < 12 ? `Volviendo al inicio en ${Math.ceil(left)} s…` : "";
+    const dt = performance.now() - snapAt;
+    const left = Math.max(0, snap.timeout_s - (snap.age_ms + dt) / 1000);
+    if (snap.state === "READY") {
+      // READY se acaba por inactividad (nadie frente al sensor), no por tiempo en pantalla: se cuenta desde la ultima actividad
+      const idle = Math.max(0, snap.timeout_s - ((snap.idle_ms || 0) + dt) / 1000);
+      const show = !snap.present && idle < Math.min(12, snap.timeout_s - 1);
+      $("#idle-note").textContent = show ? `¿Sigues ahí? Volviendo al inicio en ${Math.ceil(idle)} s…` : "";
+    }
     if (snap.state === "RESULT") {
       $("#res-left").textContent = `o en ${Math.ceil(left)} s volvemos al inicio`;
       $("#rring").style.strokeDashoffset = 157 * (1 - left / snap.timeout_s);
@@ -157,6 +164,7 @@
     else if (e.key === "ArrowLeft") { potVal = Math.max(0, potVal - 64); sim({ pot: potVal }); }
     else if (/^[1-5]$/.test(e.key)) { potVal = Math.round((+e.key - .5) * 1024 / 5); sim({ pot: potVal }); }
     else if (e.key === "p" || e.key === "P") { person = !person; sim({ distance: person ? 80 : null }); }
+    else if (e.key === "r" || e.key === "R") { sim({ reset: true }); }            // boton azul
     else if (e.key === "d" || e.key === "D") { $("#debug").hidden = !$("#debug").hidden; }
   });
   addEventListener("pointerdown", () => { if (snap && snap.sim) sim({ button: true }); });  // simulador: clic = boton

@@ -32,4 +32,29 @@ for raw, exp in ((b"DIST:87 cm\r\n", 87), (b"DIST:ERR\r\n", None)):
     m = PiHAL._RX.search(raw); assert m is not None
     assert (int(m.group(1)) if m.group(1) else None) == exp
 print("UART: tramas OK")
+
+# Botones rojo (GPIO17) y azul (GPIO27) con un lgpio falso: antirrebote de 20 ms y aviso por separado
+import time, types
+from fotobut import config as C
+lv = {C.GPIO_BUTTON: 1, C.GPIO_RESET: 1}                       # pull-up: 1 = suelto
+fake = types.SimpleNamespace(SET_PULL_UP=32, gpiochip_open=lambda n: 7, claimed=[],
+                             gpio_read=lambda h, pin: lv[pin])
+fake.gpio_claim_input = lambda h, pin, flags: fake.claimed.append(pin)
+sys.modules["lgpio"] = fake
+sys.modules["spidev"] = sys.modules["serial"] = None           # la prueba no toca el SPI ni el UART reales (en la Pi los usa el servicio)
+hal = PiHAL()
+assert fake.claimed == [C.GPIO_BUTTON, C.GPIO_RESET], fake.claimed
+assert hal.status()["button"] and hal.status()["reset"]
+ev = []
+hal.on_press = lambda t, d: ev.append(("rojo", d)); hal.on_reset = lambda t, d: ev.append(("azul", d))
+def pulso(pin, ms):
+    lv[pin] = 0; time.sleep(ms / 1000); lv[pin] = 1; time.sleep(0.06)
+time.sleep(0.05)
+pulso(C.GPIO_BUTTON, 150); assert ev == [("rojo", ev[0][1])] and ev[0][1] >= 20, ev
+pulso(C.GPIO_RESET, 150);  assert [e[0] for e in ev] == ["rojo", "azul"], ev
+pulso(C.GPIO_RESET, 6);    assert len(ev) == 2, "un rebote de 6 ms no debe contar"
+i = hal.read(); assert (i.button_presses, i.reset_presses) == (1, 1), i
+i = hal.read(); assert (i.button_presses, i.reset_presses) == (0, 0), i
+hal.close()
+print("Botones: rojo y azul OK (antirrebote %d ms)" % ev[0][1])
 print("TODO OK")

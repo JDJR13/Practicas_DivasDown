@@ -170,7 +170,11 @@ h1{font-size:11rem;letter-spacing:-.02em;color:var(--cream);text-shadow:.35rem .
 .card p span{color:#4b6a5e}
 .card[hidden]{display:none}
 .cards:has(#card-wifi[hidden]) #card-url{max-width:24rem;margin:0 auto}
+.hint{margin-top:1.2rem;font-size:1.3rem;color:rgba(255,246,227,.72)}
+.hint b{color:var(--yellow)}
+.hint[hidden]{display:none}
 .next{display:flex;align-items:center;gap:1.6rem;margin-top:2.4rem}
+.hint:not([hidden])+.next{margin-top:1.2rem}
 .next svg{width:5.4rem;height:5.4rem;transform:rotate(-90deg);flex:none}
 .next .track{stroke-width:5} #rring{fill:none;stroke:var(--yellow);stroke-width:5;stroke-linecap:round;stroke-dasharray:157}
 .next b{display:block;font-size:2.1rem} .next span{font-family:Lora,serif;font-style:italic;font-size:1.6rem;color:var(--mint)}

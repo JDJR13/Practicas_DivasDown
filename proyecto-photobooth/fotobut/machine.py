@@ -1,7 +1,9 @@
 """Maquina de estados de El Fotobut (logica pura, sin GUI).
 
 ATTRACT -> READY -> COUNTDOWN -> CAPTURE -> (COUNTDOWN x3) -> PROCESSING -> RESULT -> READY/ATTRACT
-SLEEP tras SLEEP_AFTER_S sin presencia. Entradas: boton (GPIO17), potenciometro (filtro), distancia (STM32).
+READY vuelve a ATTRACT (reposo) tras NO_PRESENCE_S sin presencia; SLEEP tras SLEEP_AFTER_S. El boton azul (reset) cancela
+lo que haya y vuelve al inicio desde cualquier estado.
+Entradas: boton rojo (GPIO17), boton azul (GPIO27), potenciometro (filtro), distancia (STM32).
 """
 from __future__ import annotations
 import logging, os, secrets, threading, time
@@ -54,7 +56,8 @@ class Machine:
         self.version = 0
         self.state = "ATTRACT"
         self._t_state = clock()
-        self._last_activity = clock()
+        self._last_activity = clock()                        # ultima actividad de cualquier tipo (incluye la perilla)
+        self._last_seen = clock()                            # ultima vez que el sensor vio a alguien o se pulso un boton
         self.filter_idx = 0
         self._pot_ema: float | None = None
         self._pot_last_active = 0
@@ -107,8 +110,17 @@ class Machine:
     def _age(self) -> float:
         return self.clock() - self._t_state
 
+    def _idle(self, now: float) -> float:
+        """Segundos sin nadie. Con el sensor vivo solo cuentan la presencia y los botones: la perilla no, porque sin MCP3008
+        su lectura flota y pareceria que siempre hay alguien. Sin sensor (respaldo) tambien cuenta la perilla."""
+        return now - (self._last_seen if self.uart_ok else self._last_activity)
+
+    def _ready_limit(self) -> float:
+        """Segundos sin actividad para dejar READY. Con el sensor vivo manda la presencia (5 s); sin sensor, el respaldo (30 s)."""
+        return C.NO_PRESENCE_S if self.uart_ok else C.READY_TIMEOUT_S
+
     def timeout_s(self) -> float | None:
-        return {"READY": C.READY_TIMEOUT_S, "RESULT": C.RESULT_TIMEOUT_S}.get(self.state)
+        return {"READY": self._ready_limit(), "RESULT": C.RESULT_TIMEOUT_S}.get(self.state)
 
     # ---------- bucle principal ----------
     def step(self) -> None:
@@ -142,10 +154,13 @@ class Machine:
             ok = inp.distance is not None and C.PRESENCE_MIN_CM <= inp.distance <= C.PRESENCE_MAX_CM
             self.consec = self.consec + 1 if ok else 0
             if ok:
-                self._last_activity = now
+                self._last_activity = self._last_seen = now
         wake = self.consec >= C.PRESENCE_SAMPLES
         if press:
-            self._last_activity = now
+            self._last_activity = self._last_seen = now
+        if inp.reset_presses > 0:                            # boton azul: cancela y vuelve al inicio (gana sobre el rojo)
+            self._reset(now)
+            press = wake = False                             # se queda en el inicio hasta volver a detectar presencia (500 ms)
 
         s = self.state
         if s == "SLEEP":
@@ -154,12 +169,12 @@ class Machine:
         elif s == "ATTRACT":
             if wake or press:
                 self._go("READY")
-            elif now - self._last_activity > C.SLEEP_AFTER_S:
+            elif self._idle(now) > C.SLEEP_AFTER_S:
                 self._go("SLEEP")
         elif s == "READY":
             if press:
                 self._start_session()
-            elif now - self._last_activity > C.READY_TIMEOUT_S:
+            elif self._idle(now) > self._ready_limit():      # 5 s sin nadie frente al sensor: a reposo
                 self._go("ATTRACT")
         elif s == "COUNTDOWN":
             c = C.COUNT_FROM - int(self._age())
@@ -185,13 +200,28 @@ class Machine:
                 self._go("RESULT")
         elif s == "RESULT":
             if press:
-                self._last_activity = now
                 self._go("READY")
             elif self._age() > C.RESULT_TIMEOUT_S:
                 self._go("ATTRACT")
 
         self._publish()
         return None
+
+    # ---------- boton azul ----------
+    def _reset(self, now: float) -> None:
+        """Cancela la sesion en curso (si la hay) y vuelve a la pantalla de inicio. Se llama con el candado tomado."""
+        log.info("RESET (boton azul) en %s", self.state)
+        if self.state in ("COUNTDOWN", "CAPTURE") and 0 < len(self.photos) < C.SHOTS:
+            self.pool.put_marker()                           # el compositor suelta las fotos de la sesion cancelada
+        self.sid = None                                      # la tira de una sesion cancelada ya no se publica
+        self.photos, self.strip_url, self._strip_ready = [], None, False
+        self.qr_wifi = self.qr_url = None
+        self.shot, self.count, self._t_cap3 = 0, C.COUNT_FROM, None
+        self.consec = 0                                      # hay que volver a detectar presencia (500 ms) para pasar a READY
+        self._last_activity = self._last_seen = now
+        self.hal.beep(C.RESET_HZ, C.RESET_MS)
+        if self.state != "ATTRACT":
+            self._go("ATTRACT")
 
     # ---------- sesion ----------
     def _start_session(self) -> None:
@@ -253,8 +283,16 @@ class Machine:
         set_prio("H_compositor", nice=0)                     # [C8-T4]
         while True:
             frames = []
-            for _ in range(C.SHOTS):
-                frames.append(self.pool.get())               # [C9-sem_llenos] 0 % de CPU mientras espera
+            while len(frames) < C.SHOTS:
+                f = self.pool.get()                          # [C9-sem_llenos] 0 % de CPU mientras espera
+                if f[2] is None or (frames and f[2][0] != frames[0][2][0]):
+                    for o in frames:                         # reset: las fotos de la sesion cancelada se descartan
+                        self.pool.release(o[0])              # [C9-sem_libres]
+                    frames = []
+                    if f[2] is None:                         # la marca tambien ocupaba un bloque
+                        self.pool.release(f[0])
+                        continue
+                frames.append(f)
             t0 = time.monotonic()
             sid, fid, _ = frames[0][2]
             try:
@@ -270,9 +308,10 @@ class Machine:
                 qw = make_qr(f"WIFI:T:WPA;S:{C.WIFI_SSID};P:{C.WIFI_PASS};;") if ap else None
                 qu = make_qr(share)
                 with self.lock:                              # [C9-mutex_estado]
-                    self.ap_active, self.share_url, self.qr_wifi, self.qr_url = ap, share, qw, qu
-                    self.strip_url, self.last_done_sid = f"/strip/{sid}.jpg", sid
-                    self.sessions_done += 1
+                    if self.sid == sid:                      # (si el reset cancelo la sesion, su tira no se muestra)
+                        self.ap_active, self.share_url, self.qr_wifi, self.qr_url = ap, share, qw, qu
+                        self.strip_url, self.last_done_sid = f"/strip/{sid}.jpg", sid
+                        self.sessions_done += 1
             except Exception as e:                           # noqa: BLE001
                 log.exception("No se pudo armar la tira: %s", e)
             finally:
@@ -280,8 +319,9 @@ class Machine:
                     self.pool.release(f[0])                  # [C9-sem_libres] devuelve los 3 bloques
             log.info("MEDICION composicion compositor_ms=%.0f", (time.monotonic() - t0) * 1000)
             with self.lock:
-                self._strip_ready = True
-                self._publish()
+                if self.sid == sid:
+                    self._strip_ready = True
+                    self._publish()
 
     def _persist(self, sid: str, src: Path, fid: str) -> None:
         """Guarda la tira final en la microSD con fsync (diseno de la clase 15) y anota una linea de telemetria."""
@@ -322,6 +362,7 @@ class Machine:
             self.extra = tel()
         return {
             "v": self.version, "state": self.state, "age_ms": int(self._age() * 1000),
+            "idle_ms": int(self._idle(self.clock()) * 1000),
             "shot": self.shot, "shots": C.SHOTS, "count": self.count, "count_from": C.COUNT_FROM,
             "review_s": C.REVIEW_S, "timeout_s": self.timeout_s(),
             "filter_idx": self.filter_idx, "filters": [{"id": x["id"], "name": x["name"], "css": x["css"]} for x in C.FILTERS],

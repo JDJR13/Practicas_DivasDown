@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PROCESO 1 · control_daemon: dueno del hardware (boton GPIO17, MCP3008 por SPI, STM32 por UART, buzzer PWM, BMP280 y OLED por I2C).
+"""PROCESO 1 · control_daemon: dueno del hardware (botones GPIO17/GPIO27, MCP3008 por SPI, STM32 por UART, buzzer PWM, BMP280 y OLED por I2C).
 
 Hilos (clases 8 y 9):
   H_boton    SCHED_FIFO 80   antirrebote 20 ms y aviso inmediato a vision_gui           (dentro de PiHAL)
@@ -49,6 +49,7 @@ class ControlDaemon:
             from .hal import PiHAL
             self.hal = PiHAL()
         self.hal.on_press = self._on_press
+        self.hal.on_reset = self._on_reset
         self.shm = ipc.SharedStatus(writer=True)
         self.srv = ipc.ControlServer(C.SOCK_PATH, self._on_command, self._hello_flags)
         self.bmp = self.oled = None
@@ -79,6 +80,9 @@ class ControlDaemon:
     def _on_press(self, t_ns: int, debounce_ms: int) -> None:
         self.srv.send(ipc.pack(ipc.EV_BUTTON, a=debounce_ms, ref_ns=t_ns))   # [C11-socket] evento al instante, sin esperar el muestreo
 
+    def _on_reset(self, t_ns: int, debounce_ms: int) -> None:
+        self.srv.send(ipc.pack(ipc.EV_RESET, a=debounce_ms, ref_ns=t_ns))    # [C11-socket] boton azul: cancelar y volver al inicio
+
     # ---------- ordenes de vision_gui ----------
     def _on_command(self, m: dict, srv: ipc.ControlServer) -> None:
         t = m["type"]
@@ -96,7 +100,8 @@ class ControlDaemon:
         elif t == ipc.CMD_SIM and self.sim:
             f = m["flags"]
             self.hal.sim_set(button=bool(f & ipc.F_SIM_BUTTON), pot=m["a"] if f & ipc.F_SIM_POT else None,
-                             distance=(None if f & ipc.F_SIM_NODIST else m["b"]) if f & (ipc.F_SIM_DIST | ipc.F_SIM_NODIST) else "keep")
+                             distance=(None if f & ipc.F_SIM_NODIST else m["b"]) if f & (ipc.F_SIM_DIST | ipc.F_SIM_NODIST) else "keep",
+                             reset=bool(f & ipc.F_SIM_RESET))
 
     # ---------- hilos ----------
     def h_sensores(self, hz: int = 20) -> None:
