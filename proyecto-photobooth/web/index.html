@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>El Fotobut</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body data-state="ATTRACT">
+<div id="stage">
+  <div id="bg"></div>
+  <div id="bulbs-top" class="bulbs"></div>
+  <div id="bulbs-bot" class="bulbs"></div>
+
+  <!-- ===== Pantalla de reposo ===== -->
+  <section id="s-attract" class="screen">
+    <div class="mini-strip left"><i></i><i></i><i></i></div>
+    <div class="mini-strip right"><i></i><i></i><i></i></div>
+    <div class="logo">
+      <svg class="cam-icon" viewBox="0 0 120 90" aria-hidden="true">
+        <rect x="6" y="18" width="108" height="66" rx="14" fill="#FFF6E3"/>
+        <rect x="34" y="6" width="34" height="18" rx="6" fill="#FFF6E3"/>
+        <circle cx="60" cy="52" r="24" fill="#0b2e22"/><circle cx="60" cy="52" r="17" fill="#15503b"/>
+        <circle cx="53" cy="45" r="5" fill="#8EE3B0" opacity=".8"/>
+        <circle cx="98" cy="32" r="5" fill="#FF6A3D"/>
+      </svg>
+      <h1>El Fotobut</h1>
+      <p class="tag">Tres fotos. Un recuerdo. Directo a tu celular.</p>
+    </div>
+    <div class="cta"><span class="rec"></span> Acércate y presiona el botón rojo <span class="chev"></span></div>
+    <div class="credit">DivasDown · Fundamentos de Sistemas Embebidos · UNAM</div>
+  </section>
+
+  <!-- ===== Listo: elegir filtro ===== -->
+  <section id="s-ready" class="screen">
+    <div class="panel">
+      <h2>Elige tu filtro</h2>
+      <p class="sub">Gira la perilla y mira cómo cambia</p>
+      <ul id="filters"></ul>
+      <div class="go">
+        <div class="arcade"><div class="base"></div><div class="dome"></div></div>
+        <div class="go-text"><b>Presiona el botón rojo</b><span>para empezar tus 3 fotos</span></div>
+      </div>
+      <div id="idle-note"></div>
+    </div>
+  </section>
+
+  <!-- ===== Visor de camara (persistente entre pantallas) ===== -->
+  <div id="vf">
+    <img id="cam" alt="">
+    <img id="shot" alt="">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div id="vf-tag"><span class="rec"></span><span id="vf-filter">Natural</span></div>
+    <div id="count">
+      <svg viewBox="0 0 200 200"><circle class="track" cx="100" cy="100" r="88"/><circle id="ring" cx="100" cy="100" r="88"/></svg>
+      <span id="num">3</span>
+    </div>
+  </div>
+  <div id="vf-msg"></div>
+
+  <div id="chips">
+    <span><b>3</b> fotos</span><span><b>~20 s</b> y tu tira está lista</span><span><b>Wi-Fi</b> sin apps</span>
+  </div>
+
+  <!-- ===== Cuenta regresiva / captura ===== -->
+  <section id="s-shoot" class="screen">
+    <div id="shot-dots"><span>FOTO</span><b id="shot-n">1</b><span>DE 3</span></div>
+    <div id="slots"><div class="slot"><em>1</em></div><div class="slot"><em>2</em></div><div class="slot"><em>3</em></div></div>
+  </section>
+
+  <!-- ===== Procesando ===== -->
+  <section id="s-proc" class="screen">
+    <div class="stack"><div class="ph"></div><div class="ph"></div><div class="ph"></div></div>
+    <div class="proc-text">
+      <h2>Revelando tu tira…</h2>
+      <p class="sub">Un momento, quedó increíble</p>
+      <div class="bar"><i></i></div>
+    </div>
+  </section>
+
+  <!-- ===== Resultado ===== -->
+  <section id="s-result" class="screen">
+    <div class="strip-wrap"><img id="strip" alt="Tu tira de fotos"></div>
+    <div class="res">
+      <h2>¡Quedó genial!</h2>
+      <p class="sub" id="res-sub">Llévatela en tu celular en dos pasos</p>
+      <div class="cards">
+        <div class="card" id="card-wifi"><div class="step">1</div><h3>Conéctate al Wi-Fi</h3><div class="qr" id="qr-wifi"></div>
+          <p><b id="ssid">Fotobut</b><span>clave <u id="wpass"></u></span></p></div>
+        <div class="card" id="card-url"><div class="step" id="step-url">2</div><h3>Escanea tu tira</h3><div class="qr" id="qr-url"></div>
+          <p><b>y descárgala</b><span id="url-txt">sin internet, sin apps</span></p></div>
+      </div>
+      <div class="next"><svg viewBox="0 0 60 60"><circle class="track" cx="30" cy="30" r="25"/><circle id="rring" cx="30" cy="30" r="25"/></svg>
+        <div><b>Presiona el botón para otra sesión</b><span id="res-left"></span></div></div>
+    </div>
+  </section>
+
+
+  <div id="flash"></div>
+  <div id="confetti"></div>
+  <div id="sleepveil"><span>El Fotobut</span><small>Acércate para despertar</small></div>
+  <div id="badge-sim" hidden>SIMULACIÓN</div>
+  <div id="lost" hidden>Reconectando…</div>
+  <pre id="debug" hidden></pre>
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+[Unit]
+StartLimitIntervalSec=0
+Description=El Fotobut - vision_gui (camara, maquina de estados, tira y pantalla :8000)
+After=fotobut-control.service
+Wants=fotobut-control.service
+
+[Service]
+Type=simple
+User=__USER__
+Group=__USER__
+SupplementaryGroups=video render
+WorkingDirectory=__DIR__
+ExecStart=/usr/bin/python3 -m fotobut.vision_gui
+Environment=FOTOBUT_SOCK=/run/photobooth/photobooth.sock
+Environment=PYTHONUNBUFFERED=1
+AmbientCapabilities=CAP_SYS_NICE
+CapabilityBoundingSet=CAP_SYS_NICE
+Restart=always
+RestartSec=1
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

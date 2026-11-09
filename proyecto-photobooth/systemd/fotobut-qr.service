@@ -1,0 +1,21 @@
+[Unit]
+StartLimitIntervalSec=0
+Description=El Fotobut - qr_httpd (descarga de la tira desde el celular :8080)
+After=network.target
+
+[Service]
+Type=simple
+User=__USER__
+Group=__USER__
+WorkingDirectory=__DIR__
+ExecStart=/usr/bin/python3 -m fotobut.qr_httpd
+Nice=10
+Restart=always
+RestartSec=1
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadOnlyPaths=/home
+
+[Install]
+WantedBy=multi-user.target

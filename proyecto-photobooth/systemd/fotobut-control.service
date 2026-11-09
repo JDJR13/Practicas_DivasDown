@@ -1,0 +1,30 @@
+[Unit]
+StartLimitIntervalSec=0
+Description=El Fotobut - control_daemon (boton, SPI, UART/STM32, buzzer, I2C)
+After=local-fs.target
+
+[Service]
+Type=simple
+User=__USER__
+Group=__USER__
+SupplementaryGroups=gpio i2c spi dialout
+WorkingDirectory=__DIR__
+ExecStart=/usr/bin/python3 -m fotobut.control_daemon
+RuntimeDirectory=photobooth
+RuntimeDirectoryMode=0770
+RuntimeDirectoryPreserve=yes
+Environment=FOTOBUT_SOCK=/run/photobooth/photobooth.sock
+Environment=LG_WD=/run/photobooth
+# [C8] prioridades: el hilo del boton pide SCHED_FIFO 80 y el de sensores nice -5 -> necesita CAP_SYS_NICE
+AmbientCapabilities=CAP_SYS_NICE
+CapabilityBoundingSet=CAP_SYS_NICE
+LimitRTPRIO=99
+# Robustez (Avance 3): si muere, systemd lo levanta en 1 s y vision_gui se reconecta solo
+Restart=always
+RestartSec=1
+# Acotar el dano de un fallo
+ProtectHome=read-only
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target
