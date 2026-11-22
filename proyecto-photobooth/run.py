@@ -4,7 +4,8 @@
 Los 3 procesos:  control_daemon (hardware) <-IPC-> vision_gui (pantalla :8000)     qr_httpd (descargas :8080)"""
 import argparse, logging, signal, subprocess, sys, time
 
-PROCS = [("control_daemon", "fotobut.control_daemon"), ("vision_gui", "fotobut.vision_gui"), ("qr_httpd", "fotobut.qr_httpd")]
+PROCS = [("control_daemon", "fotobut.procesos.control_daemon"), ("vision_gui", "fotobut.procesos.vision_gui"), ("qr_httpd", "fotobut.procesos.qr_httpd"),
+         ("monitor", "fotobut.procesos.monitor")]
 
 
 def main() -> None:
@@ -15,11 +16,11 @@ def main() -> None:
     a = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s run: %(message)s")
     sim = ["--sim"] if a.sim else []
-    extra = {"fotobut.vision_gui": ["--host", a.host, "--port", str(a.port)]}
+    extra = {"fotobut.procesos.vision_gui": ["--host", a.host, "--port", str(a.port)]}
     kids: dict[str, subprocess.Popen] = {}
 
     def start(name: str, mod: str) -> None:
-        args = sim if mod != "fotobut.qr_httpd" else []
+        args = sim if mod in ("fotobut.procesos.control_daemon", "fotobut.procesos.vision_gui") else []
         kids[name] = subprocess.Popen([sys.executable, "-m", mod, *args, *extra.get(mod, [])])
         logging.info("%s arrancado (pid %d)", name, kids[name].pid)
 

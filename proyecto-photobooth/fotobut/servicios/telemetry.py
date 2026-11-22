@@ -2,8 +2,8 @@
 from __future__ import annotations
 import logging, math, threading, time
 
-from . import config as C
-from .oled import render, local_ip
+from fotobut.servicios import config as C
+from fotobut.hardware.oled import render, local_ip
 
 log = logging.getLogger("fotobut.telemetry")
 TEMP_ALERT_C = 65.0
@@ -35,7 +35,7 @@ class Telemetry(threading.Thread):
         self.ip, self._ip_t = "sin red", 0.0
 
     def run(self) -> None:
-        from .sched import set_prio
+        from fotobut.servicios.sched import set_prio
         set_prio("H_oled", nice=10)                      # [C8-T5]
         C.TMP_DIR.mkdir(parents=True, exist_ok=True)
         while True:

@@ -1,0 +1,9 @@
+# Python
+__pycache__/
+*.pyc
+# Simulador y pruebas locales
+/sim/
+*.log
+# Respaldos de la cabina (pueden traer fotos de personas): nunca al repositorio
+fotobut-respaldo-*.tar.gz
+# El firmware compilado SI se versiona (build/*.bin): la Pi puede grabarlo sin instalar el compilador.

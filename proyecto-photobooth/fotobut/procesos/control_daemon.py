@@ -11,9 +11,9 @@ Recursos compartidos: estado_cabina (mutex_estado), bus I2C (mutex_i2c), socket 
 from __future__ import annotations
 import argparse, logging, signal, threading, time
 
-from . import config as C
-from . import ipc
-from .sched import set_prio
+from fotobut.servicios import config as C
+from fotobut.comunicacion import ipc
+from fotobut.servicios.sched import set_prio
 
 log = logging.getLogger("fotobut.control")
 
@@ -38,15 +38,17 @@ class EstadoCabina:
 
 class ControlDaemon:
     def __init__(self, sim: bool):
+        from fotobut.servicios.vigia import Latido
+        self.latido = Latido()
         self.sim = sim
         self.est = EstadoCabina()
         self.mutex_i2c = threading.Lock()                # [C9-mutex_i2c]
         self.stop = False
         if sim:
-            from .hal import SimHAL
+            from fotobut.hardware.hal import SimHAL
             self.hal = SimHAL()
         else:
-            from .hal import PiHAL
+            from fotobut.hardware.hal import PiHAL
             self.hal = PiHAL()
         self.hal.on_press = self._on_press
         self.hal.on_reset = self._on_reset
@@ -59,7 +61,7 @@ class ControlDaemon:
     # ---------- hardware ----------
     def _open_i2c(self) -> None:
         try:
-            from .i2c import I2CBus, BMP280, SSD1306
+            from fotobut.hardware.i2c import I2CBus, BMP280, SSD1306
             bus = I2CBus(C.I2C_BUS)
             for name, mk in (("BMP280", lambda: BMP280(bus, C.BMP_ADDR)), ("OLED", lambda: SSD1306(bus, C.OLED_ADDR))):
                 try:
@@ -108,6 +110,7 @@ class ControlDaemon:
         set_prio("H_sensores", nice=-5)                  # [C8-T3] muestreo SPI del potenciometro/LDR (periodo 50 ms)
         nxt = time.monotonic()
         while not self.stop:
+            self.latido.toc()
             inp = self.hal.read()
             with self.est.mutex_estado:                  # [C9-mutex_estado] una sola escritura coherente del struct
                 e = self.est
@@ -132,10 +135,12 @@ class ControlDaemon:
             e.ip, e.alert, e.bmp_ok, e.oled_ok = info["ip"], info["alert"], info["bmp_ok"], info["oled_ok"]
 
     def run(self) -> None:
-        from .telemetry import Telemetry
+        from fotobut.servicios.telemetry import Telemetry
         Telemetry(self._get_snap, self._on_info, self.bmp, self.oled, sim=self.sim, mutex_i2c=self.mutex_i2c).start()
         threading.Thread(target=self.srv.serve_forever, name="H_socket", daemon=True).start()
         log.info("control_daemon listo (sim=%s) socket=%s shm=%s", self.sim, C.SOCK_PATH, C.SHM_PATH)
+        from fotobut.servicios.vigia import Vigia                         # [C22-watchdog] si el muestreo de sensores se cuelga, systemd reinicia
+        Vigia("control_daemon", {"H_sensores (muestreo a 20 Hz)": lambda: self.latido.edad() < 5.0}).start()
         self.h_sensores()
 
     def close(self) -> None:
@@ -149,6 +154,9 @@ def main() -> None:
     ap.add_argument("--sim", action="store_true")
     a = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s control: %(message)s")
+    logging.getLogger("fotobut.config").info(C.resumen_conf())                 # [C22-config] de donde salieron los valores
+    for aviso in C.CONF_AVISOS:
+        logging.getLogger("fotobut.config").warning(aviso)
     d = ControlDaemon(a.sim)
     signal.signal(signal.SIGTERM, lambda *_: (d.close(), raise_exit()))
     try:
