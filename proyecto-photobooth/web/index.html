@@ -12,17 +12,25 @@
   <div id="bulbs-top" class="bulbs"></div>
   <div id="bulbs-bot" class="bulbs"></div>
 
+  <!-- ===== Ruta de 3 pasos: siempre se sabe en que parte del recorrido estas ===== -->
+  <ol id="pasos" aria-label="Pasos">
+    <li data-p="1"><i>1</i><span>Elige tu filtro</span></li>
+    <li data-p="2"><i>2</i><span id="paso-fotos">Posa: 3 fotos</span></li>
+    <li data-p="3"><i>3</i><span>Llévate tu tira</span></li>
+  </ol>
+
   <!-- ===== Pantalla de reposo ===== -->
   <section id="s-attract" class="screen">
     <div class="mini-strip left"><i></i><i></i><i></i></div>
     <div class="mini-strip right"><i></i><i></i><i></i></div>
     <div class="logo">
       <svg class="cam-icon" viewBox="0 0 120 90" aria-hidden="true">
-        <rect x="6" y="18" width="108" height="66" rx="14" fill="#FFF6E3"/>
-        <rect x="34" y="6" width="34" height="18" rx="6" fill="#FFF6E3"/>
-        <circle cx="60" cy="52" r="24" fill="#0b2e22"/><circle cx="60" cy="52" r="17" fill="#15503b"/>
-        <circle cx="53" cy="45" r="5" fill="#8EE3B0" opacity=".8"/>
-        <circle cx="98" cy="32" r="5" fill="#FF6A3D"/>
+        <defs><linearGradient id="oro" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F6DE9C"/><stop offset=".55" stop-color="#E2B659"/><stop offset="1" stop-color="#C8744A"/></linearGradient></defs>
+        <rect x="6" y="18" width="108" height="66" rx="14" fill="url(#oro)"/>
+        <rect x="34" y="6" width="34" height="18" rx="6" fill="url(#oro)"/>
+        <circle cx="60" cy="52" r="24" fill="#0C1320"/><circle cx="60" cy="52" r="17" fill="#22324F"/>
+        <circle cx="53" cy="45" r="5" fill="#F6DE9C" opacity=".85"/>
+        <circle cx="98" cy="32" r="5" fill="#E5382B"/>
       </svg>
       <h1>El Fotobut</h1>
       <p class="tag">Tres fotos. Un recuerdo. Directo a tu celular.</p>
@@ -64,7 +72,6 @@
 
   <!-- ===== Cuenta regresiva / captura ===== -->
   <section id="s-shoot" class="screen">
-    <div id="shot-dots"><span>FOTO</span><b id="shot-n">1</b><span>DE 3</span></div>
     <div id="slots"><div class="slot"><em>1</em></div><div class="slot"><em>2</em></div><div class="slot"><em>3</em></div></div>
   </section>
 
@@ -97,9 +104,16 @@
   </section>
 
 
+  <!-- ===== Barra de mandos: que hace cada control fisico en esta pantalla ===== -->
+  <div id="mandos">
+    <span class="m perilla" id="m-p"><i></i><b>Perilla</b><em></em></span>
+    <span class="m rojo" id="m-r"><i></i><b>Botón rojo</b><em></em></span>
+    <span class="m azul" id="m-a"><i></i><b>Botón azul</b><em></em></span>
+  </div>
+
   <div id="flash"></div>
   <div id="confetti"></div>
-  <div id="sleepveil"><span>El Fotobut</span><small>Acércate para despertar</small></div>
+  <div id="sleepveil"><span>El Fotobut</span><small>Acércate para despertar</small><em>o presiona el botón rojo</em></div>
   <div id="badge-sim" hidden>SIMULACIÓN</div>
   <div id="lost" hidden>Reconectando…</div>
   <pre id="debug" hidden></pre>

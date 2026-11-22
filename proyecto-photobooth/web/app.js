@@ -22,13 +22,13 @@
       }
     }
     const t = n + 2 * q;
-    return `<svg viewBox="0 0 ${t} ${t}" shape-rendering="crispEdges"><rect width="${t}" height="${t}" fill="#fff"/><path d="${d}" fill="#0b2e22"/></svg>`;
+    return `<svg viewBox="0 0 ${t} ${t}" shape-rendering="crispEdges"><rect width="${t}" height="${t}" fill="#fff"/><path d="${d}" fill="#0C1320"/></svg>`;
   }
 
   // ---------- helpers de animacion ----------
   function restart(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
   function confetti() {
-    const box = $("#confetti"), colors = ["#FF6A3D", "#FFD166", "#8EE3B0", "#FFF6E3", "#4cc9a0"];
+    const box = $("#confetti"), colors = ["#E2B659", "#F6DE9C", "#C8744A", "#F7EEDC", "#A9772B"];
     box.innerHTML = "";
     for (let i = 0; i < 70; i++) {
       const c = document.createElement("i");
@@ -42,6 +42,16 @@
     }
     setTimeout(() => (box.innerHTML = ""), 6500);
   }
+
+  // ---------- que hace cada control fisico en cada pantalla ----------
+  const MANDOS = {
+    ATTRACT: { r: "empezar" },
+    READY: { p: "cambia el filtro", r: "tomar mis 3 fotos", a: "salir" },
+    COUNTDOWN: { a: "cancelar" },
+    CAPTURE: { a: "cancelar" },
+    PROCESSING: { a: "cancelar" },
+    RESULT: { r: "otra sesión", a: "terminar" },
+  };
 
   // ---------- render ----------
   function buildFilters(list) {
@@ -69,9 +79,21 @@
     $("#wpass").textContent = s.wifi.pass;
     setCam(["READY", "COUNTDOWN", "CAPTURE"].includes(st));
 
+    // ruta de pasos y barra de mandos
+    const paso = { READY: 1, COUNTDOWN: 2, CAPTURE: 2, PROCESSING: 2, RESULT: 3 }[st] || 0;
+    document.querySelectorAll("#pasos li").forEach((li) => {
+      const n = +li.dataset.p;
+      li.className = n < paso ? "hecho" : n === paso ? "actual" : "";
+    });
+    $("#paso-fotos").textContent = st === "COUNTDOWN" || st === "CAPTURE" ? `Posa: foto ${s.shot} de ${s.shots}`
+      : st === "PROCESSING" ? "Revelando…" : `Posa: ${s.shots} fotos`;
+    const M = MANDOS[st] || {};
+    for (const [id, k] of [["#m-p", "p"], ["#m-r", "r"], ["#m-a", "a"]]) {
+      const el = $(id); el.hidden = !M[k]; el.querySelector("em").textContent = M[k] || "";
+    }
+
     // cuenta regresiva
     if (st === "COUNTDOWN") {
-      $("#shot-n").textContent = s.shot;
       if (s.count !== prev.count || was !== "COUNTDOWN") {
         $("#num").textContent = s.count;
         restart($("#num"), "pop");
@@ -80,7 +102,6 @@
       $("#vf-msg").textContent = s.count === 1 ? "¡Sonríe!" : s.shot === 1 ? "¡Mira a la cámara!" : "¡Otra más, tú puedes!";
     }
     if (st === "CAPTURE") {
-      $("#shot-n").textContent = s.shot;
       if (was !== "CAPTURE" || s.shot !== prev.shot) {
         restart($("#flash"), "go");
         $("#shot").src = s.photos[s.shot - 1] + "?" + Date.now();
@@ -154,6 +175,18 @@
     es.onerror = () => { $("#lost").textContent = "Reconectando…"; $("#lost").hidden = false; es.close(); setTimeout(connect, 1000); };
   }
   connect();
+
+  // ---------- cabina publica: sin menu contextual ni atajos del navegador ----------
+  // (Ver codigo fuente, herramientas de desarrollador, imprimir, guardar, buscar, zoom, abrir pestanas, recargar...)
+  // Respaldo en el propio Chromium: seguridad/chromium-politicas.json, que instala scripts/blindar.sh.
+  addEventListener("contextmenu", (e) => e.preventDefault(), true);
+  addEventListener("dragstart", (e) => e.preventDefault(), true);
+  addEventListener("keydown", (e) => {
+    const k = (e.key || "").toLowerCase();
+    const atajo = e.ctrlKey || e.metaKey || e.altKey || /^f([1-9]|1[0-2])$/.test(k);
+    if (atajo) { e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true);
+  addEventListener("wheel", (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false, capture: true });
 
   // ---------- simulador: teclado -> /api/sim ----------
   function sim(o) { fetch("/api/sim", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(o) }); }
