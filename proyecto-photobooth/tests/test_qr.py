@@ -1,7 +1,12 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-import numpy as np, cv2
-from fotobut.qr import make_qr
+import numpy as np
+try:
+    import cv2                                   # OpenCV solo se usa para LEER los QR en esta prueba; la cabina no lo necesita
+except ImportError:
+    print("OMITIDA: falta OpenCV para decodificar (sudo apt install python3-opencv). La cabina no lo necesita.")
+    sys.exit(0)
+from fotobut.logica.qr import make_qr
 
 def render(m, scale=8, quiet=4):
     n = len(m); a = np.full(((n + 2*quiet)*scale,)*2, 255, np.uint8)

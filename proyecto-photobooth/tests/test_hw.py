@@ -2,7 +2,7 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from PIL import Image
-from fotobut.i2c import BMP280, SSD1306
+from fotobut.hardware.i2c import BMP280, SSD1306
 
 class FakeBus:
     def __init__(self): self.writes = []
@@ -27,7 +27,7 @@ assert data[7 * 128 + 127] == (1 << 7)                        # y=63 -> pagina 7
 assert sum(1 for x in data if x) == 2
 print("SSD1306: empaquetado OK (1024 bytes)")
 
-from fotobut.hal import PiHAL
+from fotobut.hardware.hal import PiHAL
 for raw, exp in ((b"DIST:87 cm\r\n", 87), (b"DIST:ERR\r\n", None)):
     m = PiHAL._RX.search(raw); assert m is not None
     assert (int(m.group(1)) if m.group(1) else None) == exp
@@ -35,7 +35,7 @@ print("UART: tramas OK")
 
 # Botones rojo (GPIO17) y azul (GPIO27) con un lgpio falso: antirrebote de 20 ms y aviso por separado
 import time, types
-from fotobut import config as C
+from fotobut.servicios import config as C
 lv = {C.GPIO_BUTTON: 1, C.GPIO_RESET: 1}                       # pull-up: 1 = suelto
 fake = types.SimpleNamespace(SET_PULL_UP=32, gpiochip_open=lambda n: 7, claimed=[],
                              gpio_read=lambda h, pin: lv[pin])

@@ -6,11 +6,11 @@ tmp = tempfile.mkdtemp()
 ENV = dict(os.environ, FOTOBUT_TMP=tmp, FOTOBUT_FINAL=tmp, FOTOBUT_SOCK=f"{tmp}/p.sock", FOTOBUT_SHM=f"{tmp}/pb_status",
            FOTOBUT_SEM=f"/pbtest{os.getpid()}", PYTHONPATH=ROOT)
 os.environ.update({k: ENV[k] for k in ("FOTOBUT_TMP", "FOTOBUT_FINAL", "FOTOBUT_SOCK", "FOTOBUT_SHM", "FOTOBUT_SEM")})
-from fotobut import ipc
-from fotobut.remote_hal import RemoteHAL
+from fotobut.comunicacion import ipc
+from fotobut.comunicacion.remote_hal import RemoteHAL
 
 def start_control():
-    return subprocess.Popen([sys.executable, "-m", "fotobut.control_daemon", "--sim"], env=ENV, cwd=ROOT,
+    return subprocess.Popen([sys.executable, "-m", "fotobut.procesos.control_daemon", "--sim"], env=ENV, cwd=ROOT,
                             stderr=subprocess.PIPE, text=True)
 
 def until(pred, t=6.0):
@@ -82,7 +82,7 @@ print(f"recuperacion: deteccion {t_det*1000:.0f} ms, reconexion total {time.time
 hal.sim_set(pot=700); assert until(lambda: hal.read().pot == 700), "tras reconectar no llegan datos"
 
 # ---- 6) semaforo tomado por un proceso que muere (kill -9): el lector y el escritor NO se bloquean
-code = f"import sys,time;sys.path.insert(0,'{ROOT}');from fotobut import ipc;s=ipc.Sem('/pbdead{os.getpid()}',False);s.wait(1);print('tomado',flush=True);time.sleep(60)"
+code = f"import sys,time;sys.path.insert(0,'{ROOT}');from fotobut.comunicacion import ipc;s=ipc.Sem('/pbdead{os.getpid()}',False);s.wait(1);print('tomado',flush=True);time.sleep(60)"
 w2 = ipc.SharedStatus(writer=True, path=f"{tmp}/dead", sem_name=f"/pbdead{os.getpid()}")
 rd2 = ipc.SharedStatus(writer=False, path=f"{tmp}/dead", sem_name=f"/pbdead{os.getpid()}")
 p = subprocess.Popen([sys.executable, "-c", code], stdout=subprocess.PIPE, text=True); p.stdout.readline()

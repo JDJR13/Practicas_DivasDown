@@ -1,10 +1,10 @@
 import sys, os, tempfile, time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 os.environ["FOTOBUT_TMP"] = tempfile.mkdtemp(); os.environ["FOTOBUT_FINAL"] = tempfile.mkdtemp()
-from fotobut import config as C
-from fotobut.hal import SimHAL
-from fotobut.camera import SimCamera
-from fotobut.machine import Machine, pot_to_filter
+from fotobut.servicios import config as C
+from fotobut.hardware.hal import SimHAL
+from fotobut.hardware.camera import SimCamera
+from fotobut.logica.machine import Machine, pot_to_filter
 
 class Clk:
     t = 1000.0
@@ -25,9 +25,11 @@ def wait_strip():
 
 # 1) boton despierta ATTRACT -> READY
 assert m.state == "ATTRACT"; hal.sim_set(button=True); run(0.2); assert m.state == "READY", m.state
-# 2) presencia: 5 muestras seguidas despiertan desde ATTRACT
-m._go("ATTRACT"); m.consec = 0; hal.sim_set(distance=80); run(0.1); assert m.state == "ATTRACT"
-run(0.6); assert m.state == "READY", m.state
+# 2) presencia: 5 muestras seguidas despiertan el REPOSO a la pantalla de inicio; solo el boton rojo pasa a elegir filtro
+m._go("SLEEP"); m.consec = 0; hal.sim_set(distance=80); run(0.1); assert m.state == "SLEEP"
+run(0.6); assert m.state == "ATTRACT", m.state
+run(3); assert m.state == "ATTRACT", "la presencia sola no debe avanzar a elegir filtro"
+m._go("SLEEP"); hal.sim_set(button=True); run(0.2); assert m.state == "READY", "el rojo desde el reposo va directo a elegir filtro"
 # 3) lectura espuria resetea el conteo
 m._go("ATTRACT"); m.consec = 0; hal.sim_set(distance=80); run(0.15); hal.sim_set(distance=300); run(0.1)
 assert m.consec == 0 and m.state == "ATTRACT"
@@ -49,7 +51,7 @@ assert m.state == "RESULT" and len(m.photos) == 3 and m.strip_url and m.qr_url
 # sin punto de acceso (sandbox / Pi sin AP): solo el QR de la URL; con AP: tambien el de Wi-Fi
 assert m.ap_active == (m.qr_wifi is not None), (m.ap_active, m.qr_wifi)
 assert m.share_url and m.share_url.endswith("/s/" + m.sid) and f":{C.SHARE_PORT}/" in m.share_url
-import re; assert re.fullmatch(r"[0-9]{4}-[0-9a-f]{8}", m.sid), m.sid
+import re; assert re.fullmatch(r"[0-9]{4}-[0-9a-f]{16}", m.sid), m.sid
 for i in (1, 2, 3): assert (C.TMP_DIR / m.sid / f"foto{i}_f.jpg").exists()
 assert len(C.WIFI_PASS) >= 8                                  # WPA2 exige 8-63 caracteres
 assert [s for s in seen if s[0] == "CAPTURE"] == [("CAPTURE", 1), ("CAPTURE", 2), ("CAPTURE", 3)]
@@ -70,7 +72,8 @@ run(C.NO_PRESENCE_S + 3); assert m.state == "READY", "con presencia debe quedars
 hal.sim_set(distance=None); run(C.NO_PRESENCE_S - 0.5); assert m.state == "READY", m.state
 assert m.snapshot()["timeout_s"] == C.NO_PRESENCE_S and m.snapshot()["idle_ms"] >= 4000
 run(1.0); assert m.state == "SLEEP", m.state
-hal.sim_set(distance=80); run(0.7); assert m.state == "READY", "la presencia despierta el reposo"
+hal.sim_set(distance=80); run(0.7); assert m.state == "ATTRACT", "la presencia despierta el reposo (a la pantalla de inicio)"
+hal.sim_set(button=True); run(0.2); assert m.state == "READY"
 hal.sim_set(distance=None); run(C.NO_PRESENCE_S + 0.5); assert m.state == "SLEEP", m.state
 # la perilla NO cuenta como presencia: sin MCP3008 su lectura flota y la cabina nunca volveria al inicio
 hal.sim_set(button=True); run(0.2); assert m.state == "READY"
@@ -140,10 +143,10 @@ assert all(f"/{sid_new}/" in p for p in m.photos)
 reset_and_check("RESULT")
 assert (C.FINAL_DIR / f"{sid_new}.jpg").exists()               # la tira ya guardada no se borra con el reset
 hal.sim_set(reset=True); m._go("SLEEP"); run(0.1); assert m.state == "ATTRACT"   # tambien despierta la pantalla
-# con alguien enfrente: el reset muestra el inicio y solo tras volver a detectar presencia (5 lecturas) pasa a READY
-hal.sim_set(distance=80); run(1.0); assert m.state == "READY" and m.consec >= C.PRESENCE_SAMPLES
+# con alguien enfrente: el reset muestra el inicio y ahi se queda (la presencia lo mantiene despierto) hasta el boton rojo
+hal.sim_set(distance=80); hal.sim_set(button=True); run(1.0); assert m.state == "READY" and m.consec >= C.PRESENCE_SAMPLES
 hal.sim_set(reset=True); clk.t += 0.05; hal._last_sample = -1; m.step(); assert m.state == "ATTRACT", m.state
-run(0.15); assert m.state == "ATTRACT", m.state
-run(0.5); assert m.state == "READY", m.state
+run(C.NO_PRESENCE_S + 2); assert m.state == "ATTRACT", "con alguien enfrente el inicio no se duerme ni avanza solo"
+hal.sim_set(button=True); run(0.2); assert m.state == "READY", m.state
 hal.sim_set(distance=None)
 print("TODO OK")
