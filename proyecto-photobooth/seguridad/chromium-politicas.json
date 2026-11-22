@@ -1,0 +1,19 @@
+{
+  "DeveloperToolsAvailability": 2,
+  "URLBlocklist": [
+    "view-source:*",
+    "devtools://*",
+    "file://*"
+  ],
+  "IncognitoModeAvailability": 1,
+  "BrowserGuestModeEnabled": false,
+  "BrowserAddPersonEnabled": false,
+  "PrintingEnabled": false,
+  "DownloadRestrictions": 3,
+  "PasswordManagerEnabled": false,
+  "AutofillAddressEnabled": false,
+  "AutofillCreditCardEnabled": false,
+  "TranslateEnabled": false,
+  "SpellcheckEnabled": false,
+  "BookmarkBarEnabled": false
+}

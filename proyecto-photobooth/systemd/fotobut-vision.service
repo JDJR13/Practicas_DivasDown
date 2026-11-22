@@ -10,13 +10,16 @@ User=__USER__
 Group=__USER__
 SupplementaryGroups=video render
 WorkingDirectory=__DIR__
-ExecStart=/usr/bin/python3 -m fotobut.vision_gui
+ExecStart=/usr/bin/python3 -m fotobut.procesos.vision_gui
 Environment=FOTOBUT_SOCK=/run/photobooth/photobooth.sock
 Environment=PYTHONUNBUFFERED=1
 AmbientCapabilities=CAP_SYS_NICE
 CapabilityBoundingSet=CAP_SYS_NICE
 Restart=always
 RestartSec=1
+# [C22] watchdog: el proceso manda una senal de vida (fotobut/servicios/vigia.py); si se cuelga sin morir, systemd lo mata y lo levanta
+WatchdogSec=30
+WatchdogSignal=SIGKILL
 NoNewPrivileges=yes
 
 [Install]

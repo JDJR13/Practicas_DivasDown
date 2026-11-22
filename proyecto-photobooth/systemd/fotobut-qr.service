@@ -8,10 +8,13 @@ Type=simple
 User=__USER__
 Group=__USER__
 WorkingDirectory=__DIR__
-ExecStart=/usr/bin/python3 -m fotobut.qr_httpd
+ExecStart=/usr/bin/python3 -m fotobut.procesos.qr_httpd
 Nice=10
 Restart=always
 RestartSec=1
+# [C22] watchdog: el proceso manda una senal de vida (fotobut/servicios/vigia.py); si se cuelga sin morir, systemd lo mata y lo levanta
+WatchdogSec=20
+WatchdogSignal=SIGKILL
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=read-only

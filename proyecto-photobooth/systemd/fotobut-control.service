@@ -9,7 +9,7 @@ User=__USER__
 Group=__USER__
 SupplementaryGroups=gpio i2c spi dialout
 WorkingDirectory=__DIR__
-ExecStart=/usr/bin/python3 -m fotobut.control_daemon
+ExecStart=/usr/bin/python3 -m fotobut.procesos.control_daemon
 RuntimeDirectory=photobooth
 RuntimeDirectoryMode=0770
 RuntimeDirectoryPreserve=yes
@@ -22,6 +22,9 @@ LimitRTPRIO=99
 # Robustez (Avance 3): si muere, systemd lo levanta en 1 s y vision_gui se reconecta solo
 Restart=always
 RestartSec=1
+# [C22] watchdog: el proceso manda una senal de vida (fotobut/servicios/vigia.py); si se cuelga sin morir, systemd lo mata y lo levanta
+WatchdogSec=15
+WatchdogSignal=SIGKILL
 # Acotar el dano de un fallo
 ProtectHome=read-only
 NoNewPrivileges=yes

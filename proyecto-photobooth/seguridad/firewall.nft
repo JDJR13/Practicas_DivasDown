@@ -1,0 +1,45 @@
+#!/usr/sbin/nft -f
+# Cortafuegos de El Fotobut (nftables). Politica: se descarta TODO lo que entra, salvo lo que la cabina necesita.
+# Se carga con scripts/blindar.sh (queda como servicio fotobut-firewall). Solo toca su propia tabla: no borra las reglas
+# que NetworkManager crea para el punto de acceso.
+table inet fotobut
+delete table inet fotobut
+table inet fotobut {
+	set ssh_nuevas { type ipv4_addr; flags dynamic,timeout; timeout 5m; size 2048; }
+	set web_nuevas { type ipv4_addr; flags dynamic,timeout; timeout 1m; size 2048; }
+	set web_abiertas { type ipv4_addr; flags dynamic; size 2048; }        # opcional
+
+	chain entrada {
+		type filter hook input priority filter; policy drop;
+		iif "lo" accept
+		ct state established,related accept
+		ct state invalid drop
+
+		# diagnostico basico (ping), con limite
+		icmp type echo-request limit rate 5/second burst 10 packets accept
+		icmp type { destination-unreachable, time-exceeded, parameter-problem } accept
+		meta l4proto ipv6-icmp accept
+
+		# red propia de la cabina: DHCP y DNS para los celulares (los atiende NetworkManager/dnsmasq), y nombre lino.local
+		udp dport { 67, 68 } accept
+		ip saddr 192.168.4.0/24 meta l4proto { tcp, udp } th dport 53 accept
+		udp dport 5353 accept
+
+		# SSH: unica puerta de administracion (con llave). Maximo 6 conexiones nuevas por minuto por IP: frena la fuerza bruta
+		tcp dport 22 ct state new add @ssh_nuevas { ip saddr limit rate over 6/minute burst 6 packets } counter drop
+		tcp dport 22 accept
+
+		# Descarga de tiras (qr_httpd): unico servicio para el publico. Tope de conexiones nuevas y simultaneas por IP
+		tcp dport 8080 ct state new add @web_nuevas { ip saddr limit rate over 40/second burst 60 packets } counter drop
+		tcp dport 8080 ct state new add @web_abiertas { ip saddr ct count over 16 } counter reject with tcp reset        # opcional
+		tcp dport 8080 accept
+
+		# todo lo demas (8000 pantalla, 9000 panel, cualquier otro puerto) no existe para la red
+		counter drop
+	}
+
+	# la cabina no es un ruteador: un celular conectado a "Fotobut" no puede usarla para llegar a otras redes
+	chain reenvio {
+		type filter hook forward priority filter; policy drop;
+	}
+}

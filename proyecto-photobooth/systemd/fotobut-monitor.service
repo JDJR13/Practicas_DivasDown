@@ -1,0 +1,30 @@
+[Unit]
+StartLimitIntervalSec=0
+Description=El Fotobut - monitor (caja negra y panel de mantenimiento en 127.0.0.1:9000)
+After=local-fs.target
+
+[Service]
+Type=simple
+User=__USER__
+Group=__USER__
+SupplementaryGroups=systemd-journal video
+WorkingDirectory=__DIR__
+ExecStart=/usr/bin/python3 -m fotobut.procesos.monitor
+# la caja negra vive en /var/lib/fotobut (systemd crea la carpeta con el dueno correcto)
+StateDirectory=fotobut
+StateDirectoryMode=0750
+Environment=FOTOBUT_ESTADO=/var/lib/fotobut
+Environment=PYTHONUNBUFFERED=1
+Nice=15
+Restart=always
+RestartSec=2
+WatchdogSec=120
+WatchdogSignal=SIGKILL
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target
